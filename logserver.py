@@ -62,7 +62,12 @@ def get_url():
         setup_data()
     global logging_url
     if not logging_url:
-        url = request.host_url
+        if "herokuapp.com" in request.host_url:
+            tmp = request.host_url.split(':')
+            tmp[0] = "https"
+            url = ":".join(tmp)
+        else:
+            url = request.host_url
     else:
         url = logging_url
     print("returning  {}".format(url))
