@@ -1,0 +1,55 @@
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/log4javascript/1.4.9/log4javascript.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css"/>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+    <script src="/js/buttons.js"></script>
+
+</head>
+<body>
+<div class="row">
+  <div class="col-sm-4"> </div>
+  <div class="col-sm-4"><h2>Log demo</h2>  </div>
+  <div class="col-sm-4"></div>
+</div>
+<div class="row">
+  <div class="col-sm-4"> </div>
+  <div class="col-sm-4">
+      <form id="form1" role="form" class="form-horizontal">
+	  <button type="submit" class="btn btn-default">Initialize log</button>
+      </form>
+  </div>
+  <div class="col-sm-4"></div>
+</div>
+<div class="row">
+  <div class="col-sm-4"> </div>
+  <div class="col-sm-4">
+      <form id="form2" role="form" class="form-horizontal">
+	  <button type="submit" class="btn btn-default">get stream id</button>
+      </form>
+  </div>
+  <div class="col-sm-4"></div>
+</div>
+<div class="row">
+  <div class="col-sm-4"> </div>
+  <div class="col-sm-4">
+      <form id="form3" role="form">
+	  <div class="form-group">
+	      <label for="logger">Logger</label>
+	      <input type="text" class="form-control" id="logger" value="foobar">
+	  </div>
+	  <div class="form-group">
+	      <label for="level">Level</label>
+	      <input type="text" class="form-control" id="level" value="debug">
+	  </div>
+	  <div class="form-group">
+	      <label for="message">Message</label>
+	      <input type="text" class="form-control" id="message" value="a message">
+	  </div>
+	  <button type="submit" class="btn btn-default">Submit</button>
+      </form>
+  </div>
+  <div class="col-sm-4"></div>
+</div>
+</body>
