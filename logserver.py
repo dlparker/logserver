@@ -12,7 +12,7 @@ from flask import render_template
 from flask import send_from_directory
 
 db = None
-logging_url = None
+logging_url = http://10.10.11.225:5000/
 initial_stream_id = 0
 current_stream_id = 0
 
