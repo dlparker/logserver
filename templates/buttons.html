@@ -15,6 +15,16 @@
 </div>
 <div class="row">
   <div class="col-sm-4"> </div>
+  <div class="col-sm-4"><a href="/">home</a> </div>
+  <div class="col-sm-4"></div>
+</div>
+<div class="row">
+  <div class="col-sm-4"> </div>
+  <div class="col-sm-4">&nbsp;</div>
+  <div class="col-sm-4"></div>
+</div>
+<div class="row">
+  <div class="col-sm-4"> </div>
   <div class="col-sm-4">
       <form id="form1" role="form" class="form-horizontal">
 	  <button type="submit" class="btn btn-default">Initialize log</button>
@@ -47,9 +57,27 @@
 	      <label for="message">Message</label>
 	      <input type="text" class="form-control" id="message" value="a message">
 	  </div>
+	  <input type=hidden name=platform value=browser>
+	  <input type=hidden name=version value=1>
+	  <input type=hidden name=app_id value=control_panel_direct_input>
 	  <button type="submit" class="btn btn-default">Submit</button>
       </form>
   </div>
+  <div class="col-sm-4"></div>
+</div>
+<div class="row">
+  <div class="col-sm-4"></div>
+  <div class="col-sm-4">Logging url: <span id="logging_url"></span></div>
+  <div class="col-sm-4"></div>
+</div>
+<div class="row">
+  <div class="col-sm-4"></div>
+  <div class="col-sm-4">Stream id: <span id="stream_id"></span></div>
+  <div class="col-sm-4"></div>
+</div>
+<div class="row">
+  <div class="col-sm-4"></div>
+  <div class="col-sm-4">Messages: <span id="messages"></span></div>
   <div class="col-sm-4"></div>
 </div>
 </body>

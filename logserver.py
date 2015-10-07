@@ -11,21 +11,47 @@ from flask import Flask
 from flask import request
 from flask import render_template
 from flask import send_from_directory
+from flask import Flask, request, flash, url_for, redirect, render_template
+from flask_sqlalchemy import SQLAlchemy
 
+
+in_heroku = True
+logging_url = "http://localhost:5000/"
+if os.environ.get('LOG_NO_HEROKU', None):
+    in_heroku = False
+#logging_url = "http://192.168.100.108:5001/"
 db = None
-logging_url = "http://192.168.100.108:5000/"
 initial_stream_id = 0
 current_stream_id = 0
 
 # set the project root directory as the static folder, you can set others.
 app = Flask(__name__, static_url_path='')
+config_path = os.environ.get('APP_CONFIG_FILE', 'config.py')
+#print "loading config from ", config_path
+#app.config.from_pyfile(config_path)
 
 @app.route('/js/<path:path>')
 def send_js(path):
     return send_from_directory('js', path)
 
 @app.route('/', methods=['GET'])
-def home():
+def index():
+    global db
+    if not db:
+        setup_data()
+    cursor = db.cursor()
+    cursor.execute('select count(*) from streams');
+    row = cursor.fetchone();
+    total_streams = row[0]
+    try:
+        return render_template('index.html',
+                               total_streams=total_streams)
+    except:
+        traceback.print_exc()
+        raise
+
+@app.route('/buttons', methods=['GET'])
+def buttons():
     try:
         return render_template('buttons.html')
     except:
@@ -159,7 +185,10 @@ def setup_data():
     global current_stream_id
     global db
     if not db:
-        db = sqlite3.connect(':memory:')
+        if in_heroku:
+            db = sqlite3.connect(':memory:')
+        else:
+            db = sqlite3.connect('log_data.sqlite3')
     cursor = db.cursor()
     cursor.execute('create table if not exists log (stream_id default -1, timestamp, level, logger, message);');
     cursor.execute('create table if not exists last_stream (id);');
@@ -205,4 +234,5 @@ if __name__ == '__main__':
     original_sigint = signal.getsignal(signal.SIGINT)
     signal.signal(signal.SIGINT, exit_gracefully)
     setup_data()
-    app.run(host="0.0.0.0")
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)

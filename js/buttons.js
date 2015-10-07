@@ -15,8 +15,9 @@
                     url: '/get_logging_url',
                     dataType: 'json',
                     success: function (response) {
-                        alert('got logging url ' + response.url);
+                        //alert('got logging url ' + response.url);
                         window.logging_url = response.url
+                        $('#logging_url').html(response.url)
                         button2.prop('disabled', false);
                     },
                     error: function (xhr, ajaxOptions, thrownError) {
@@ -34,7 +35,8 @@
                     url: window.logging_url + 'get_new_stream_id',
                     dataType: 'json',
                     success: function (response) {
-                        alert('got stream id ' + response.id);
+                        //alert('got stream id ' + response.id);
+                        $('#stream_id').html(response.id)
                         window.logging_stream_id = response.id
                         button3.prop('disabled', false);
                     },
@@ -65,7 +67,8 @@
                     dataType: 'json',
                     data: data,
                     success: function (response) {
-                        alert('got record response ' + JSON.stringify(response));
+                        //alert('got record response ' + JSON.stringify(response));
+                        $('#messages').append(JSON.stringify(response) + "</br>");
                     },
                     error: function (xhr, ajaxOptions, thrownError) {
                         alert(xhr.status);
