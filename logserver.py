@@ -61,15 +61,33 @@ def get_url():
     if not db:
         setup_data()
     global logging_url
+    local_url = request.host_url
+    if "herokuapp.com" in request.host_url:
+        tmp = request.host_url.split(':')
+        tmp[0] = "https"
+        local_url = ":".join(tmp)
     if not logging_url:
-        if "herokuapp.com" in request.host_url:
-            tmp = request.host_url.split(':')
-            tmp[0] = "https"
-            url = ":".join(tmp)
-        else:
-            url = request.host_url
+        url = local_url
     else:
         url = logging_url
+
+    try:
+        token = request.args.get('token', None)
+        platform = request.args.get('platform', None)
+        version = request.args.get('version', None)
+        app_id = request.args.get('app_id', None)
+        cursor = db.cursor()
+        cursor.execute('select url from stream_director where token=?'
+                   ' and platform = ? and version = ?'
+                   ' and app_id = ?', [token, platform, version, app_id])
+        res = cursor.fetchone()
+        if res is not None and len(res) > 0;
+            url = res[0]
+            if url == "local":
+                url = local_url
+    except:
+        traceback.print_exc()
+
     print("returning  {}".format(url))
     return json.dumps({'status': 'ok', 'url': url})
 
@@ -101,20 +119,33 @@ def stream_record(stream_id):
 
 @app.route('/get_new_stream_id', methods=['GET'])
 def get_stream():
-    global db
-    if not db:
-        setup_data()
+    try:
+        token = request.args.get('token', None)
+        platform = request.args.get('platform', None)
+        version = request.args.get('version', None)
+        app_id = request.args.get('app_id', None)
+    except:
+        traceback.print_exc()
     try:
         cursor = db.cursor()
-        cursor.execute('select id from streams limit 1');
+        cursor.execute('select id from last_stream limit 1');
         row = cursor.fetchone();
         if row is None:
             current_stream_id = initial_stream_id
-            cursor.execute('insert into streams (id) values (?)', [current_stream_id,]);
+            cursor.execute('insert into last_stream (id) values (?)', [current_stream_id,]);
         else:
             current_stream_id = int(row[0])
             current_stream_id += 1
-            cursor.execute('update streams set id=?', [current_stream_id,]);
+            cursor.execute('update last_stream set id=?', [current_stream_id,]);
+        cursor.execute('insert into streams '
+                       '(stream_id, timestamp, token, platform, version, app_id) '
+                       'values (?,?,?,?,?,?)',
+                       [current_stream_id,
+                        str(datetime.datetime.utcnow()),
+                        token,
+                        platform,
+                        version,
+                        app_id])
         db.commit()
         print "returning stream id", current_stream_id
     except:
@@ -130,8 +161,12 @@ def setup_data():
         db = sqlite3.connect(':memory:')
     cursor = db.cursor()
     cursor.execute('create table if not exists log (stream_id default -1, timestamp, level, logger, message);');
-    cursor.execute('create table if not exists streams (id);');
-    cursor.execute('select id from streams limit 1');
+    cursor.execute('create table if not exists last_stream (id);');
+    cursor.execute('create table if not exists streams (stream_id default -1, timestamp, token, platform, version, app_id);');
+
+    cursor.execute('create table if not exists stream_director (token, platform, version, app_id, url);');
+
+    cursor.execute('select id from last_stream limit 1');
     row = cursor.fetchone();
     if row is None:
         current_stream_id = initial_stream_id
@@ -152,22 +187,10 @@ def exit_gracefully(signum, frame):
     # in raw_input when CTRL+C is pressed, and our signal handler is not re-entrant
     signal.signal(signal.SIGINT, original_sigint)
 
-    do_exit = False
-    try:
-        if raw_input("\nReally quit? (y/n)> ").lower().startswith('y'):
-            do_exit = True
+    if db:
+        db.close()
+    sys.exit(1)
 
-    except KeyboardInterrupt:
-        print("Ok ok, quitting")
-        do_exit = True
-
-    if do_exit:
-        if db:
-            db.close()
-        sys.exit(1)
-
-    # restore the exit gracefully handler here
-    signal.signal(signal.SIGINT, exit_gracefully)
 
 
 if __name__ == '__main__':
