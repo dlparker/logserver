@@ -2,6 +2,7 @@ import time
 import signal
 import sys
 import os
+import datetime
 from pprint import pprint
 import traceback
 import json
@@ -81,7 +82,7 @@ def get_url():
                    ' and platform = ? and version = ?'
                    ' and app_id = ?', [token, platform, version, app_id])
         res = cursor.fetchone()
-        if res is not None and len(res) > 0;
+        if res is not None and len(res) > 0:
             url = res[0]
             if url == "local":
                 url = local_url
