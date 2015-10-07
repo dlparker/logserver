@@ -8,12 +8,20 @@
         var form3 = $('#form3');
         var button3 = $(form3).find('button');
         button3.prop('disabled', true);
+        var caller_data = {
+	    platform:'browser',
+            version: 'value',
+            token: Date().toString(),
+	    'app_id': 'control_panel_direct_input'
+        }
+
         function setupButton1() {
             button1.on('click', function(e) {
                 e.preventDefault();
                 $.ajax({
                     url: '/get_logging_url',
                     dataType: 'json',
+                    data: caller_data,
                     success: function (response) {
                         //alert('got logging url ' + response.url);
                         window.logging_url = response.url
@@ -34,6 +42,7 @@
                 $.ajax({
                     url: window.logging_url + 'get_new_stream_id',
                     dataType: 'json',
+                    data: caller_data,
                     success: function (response) {
                         //alert('got stream id ' + response.id);
                         $('#stream_id').html(response.id)

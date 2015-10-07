@@ -15,20 +15,93 @@ from flask import Flask, request, flash, url_for, redirect, render_template
 from flask_sqlalchemy import SQLAlchemy
 
 
-in_heroku = True
-logging_url = "http://localhost:5000/"
-if os.environ.get('LOG_NO_HEROKU', None):
-    in_heroku = False
-#logging_url = "http://192.168.100.108:5001/"
-db = None
+
+
 initial_stream_id = 0
 current_stream_id = 0
 
 # set the project root directory as the static folder, you can set others.
 app = Flask(__name__, static_url_path='')
 config_path = os.environ.get('APP_CONFIG_FILE', 'config.py')
-#print "loading config from ", config_path
-#app.config.from_pyfile(config_path)
+print "loading config from ", config_path
+app.config.from_pyfile(config_path)
+db = SQLAlchemy(app)
+
+class LastStream(db.Model):
+    __tablename__ = 'last_stream'
+    id = db.Column(db.Integer, primary_key=True)
+    stream_id = db.Column(db.Integer, unique=True)
+
+    def __init__(self, stream_id):
+        self.stream_id = stream_id
+
+class Stream(db.Model):
+    __tablename__ = 'streams'
+    id = db.Column(db.Integer, primary_key=True)
+    stream_id = db.Column(db.Integer, index=True)
+    timestamp = db.Column(db.DateTime, index=True)
+    token = db.Column(db.String(120), index=True)
+    platform = db.Column(db.String(120), index=True)
+    version = db.Column(db.String(120), index=True)
+    app_id = db.Column(db.String(120), index=True)
+
+    def __init__(self, stream_id, token, platform,
+                 version, app_id, timestamp=None):
+       self.stream_id = stream_id
+       self.token = token
+       self.platform = platform
+       self.version = version
+       self.app_id = app_id
+       if not timestamp:
+           timestamp = datetime.datetime.utcnow()
+       self.timestamp = timestamp
+
+class StreamDirector(db.Model):
+    __tablename__ = 'stream_director'
+    id = db.Column(db.Integer, primary_key=True)
+    token = db.Column(db.String(120), index=True)
+    platform = db.Column(db.String(120), index=True)
+    version = db.Column(db.String(120), index=True)
+    app_id = db.Column(db.String(120), index=True)
+    url = db.Column(db.String(4000))
+
+    def __init__(self, token, platform, version, app_id, url):
+       self.token = token
+       self.platform = platform
+       self.version = version
+       self.app_id = app_id
+       self.url = url
+
+class LogRecord(db.Model):
+    __tablename__ = 'log'
+    id = db.Column(db.Integer, primary_key=True)
+    sent_timestamp = db.Column(db.String(120))
+    logger = db.Column(db.String(120))
+    level = db.Column(db.String(30))
+    message = db.Column(db.Text)
+    stream_id = db.Column(db.Integer, index=True)
+    local_timestamp = db.Column(db.DateTime, index=True)
+    token = db.Column(db.String(120))
+    platform = db.Column(db.String(120))
+    version = db.Column(db.String(120))
+    app_id = db.Column(db.String(120))
+
+    def __init__(self, stream, timestamp,  logger, level, message):
+       self.sent_timestamp = timestamp
+       self.logger = logger
+       self.level = level
+       self.message = message
+       self.stream_id = stream.stream_id
+       self.token = stream.token
+       self.platform = stream.platform
+       self.version = stream.version
+       self.app_id = stream.app_id
+       local_timestamp = datetime.datetime.utcnow()
+
+db.create_all()
+
+
+
 
 @app.route('/js/<path:path>')
 def send_js(path):
@@ -36,14 +109,9 @@ def send_js(path):
 
 @app.route('/', methods=['GET'])
 def index():
-    global db
-    if not db:
-        setup_data()
-    cursor = db.cursor()
-    cursor.execute('select count(*) from streams');
-    row = cursor.fetchone();
-    total_streams = row[0]
+
     try:
+        total_streams = Stream.query.count()
         return render_template('index.html',
                                total_streams=total_streams)
     except:
@@ -84,10 +152,7 @@ def to_utf8(text):
 
 @app.route('/get_logging_url', methods=['GET'])
 def get_url():
-    global db
-    if not db:
-        setup_data()
-    global logging_url
+    logging_url = app.config['LOGGING_URL']
     local_url = request.host_url
     if "herokuapp.com" in request.host_url:
         tmp = request.host_url.split(':')
@@ -103,13 +168,12 @@ def get_url():
         platform = request.args.get('platform', None)
         version = request.args.get('version', None)
         app_id = request.args.get('app_id', None)
-        cursor = db.cursor()
-        cursor.execute('select url from stream_director where token=?'
-                   ' and platform = ? and version = ?'
-                   ' and app_id = ?', [token, platform, version, app_id])
-        res = cursor.fetchone()
-        if res is not None and len(res) > 0:
-            url = res[0]
+        q = StreamDirector.query.filter_by(token=token,
+                                           platform=platform,
+                                           version=version,
+                                           app_id=app_id)
+        if q.count() > 0:
+            url = q[0].url
             if url == "local":
                 url = local_url
     except:
@@ -120,26 +184,28 @@ def get_url():
 
 @app.route('/stream/<int:stream_id>/record', methods=['POST'])
 def stream_record(stream_id):
-    global db
-    if not db:
-        setup_data()
     try:
         data = request.form['data']
         #pprint(data)
         jdata = json.loads('\\"'.join(data.split('\\\\"')))
         pprint(jdata)
-        if db:
-            for record in jdata:
-                record[u'log_stream_id'] = stream_id
-                for field in ['timestamp', 'logger', 'level', 'message']:
-                    if field not in record:
-                        if field == "timestamp":
-                            record[field] = 0
-                        else:
-                            record[field] = "unknown"
-                db.cursor().execute('insert into log (stream_id, timestamp, level, logger, message) values (?,?,?,?,?)',
-                                    [stream_id, record['timestamp'], record['level'],record['logger'],record['message']])
-            db.commit()
+        q = Stream.query.filter_by(stream_id=stream_id)
+        stream = q[0]
+        for record in jdata:
+            record[u'log_stream_id'] = stream_id
+            for field in ['timestamp', 'logger', 'level', 'message']:
+                if field not in record:
+                    if field == "timestamp":
+                        record[field] = 0
+                    else:
+                        record[field] = "unknown"
+            rec = LogRecord(stream,
+                            record['timestamp'],
+                            record['level'],
+                            record['logger'],
+                            record['message'])
+            db.session.add(rec)
+            db.session.commit()
     except:
         traceback.print_exc()
     return json.dumps({'status': 'ok'})
@@ -154,85 +220,41 @@ def get_stream():
     except:
         traceback.print_exc()
     try:
-        cursor = db.cursor()
-        cursor.execute('select id from last_stream limit 1');
-        row = cursor.fetchone();
-        if row is None:
-            current_stream_id = initial_stream_id
-            cursor.execute('insert into last_stream (id) values (?)', [current_stream_id,]);
+        all = LastStream.query.all()
+
+        stream_id = 0
+        if len(all) == 0:
+            ls = LastStream(stream_id)
+            db.session.add(ls)
         else:
-            current_stream_id = int(row[0])
-            current_stream_id += 1
-            cursor.execute('update last_stream set id=?', [current_stream_id,]);
-        cursor.execute('insert into streams '
-                       '(stream_id, timestamp, token, platform, version, app_id) '
-                       'values (?,?,?,?,?,?)',
-                       [current_stream_id,
-                        str(datetime.datetime.utcnow()),
-                        token,
-                        platform,
-                        version,
-                        app_id])
-        db.commit()
-        print "returning stream id", current_stream_id
+            ls = all[0]
+            stream_id = ls.stream_id + 1
+            ls.stream_id = stream_id
+        stream =  Stream(stream_id, token, platform, version, app_id)
+        print stream.__dict__
+        db.session.add(stream)
+        db.session.commit()
+        print "returning stream id", stream_id
     except:
         traceback.print_exc()
         raise
-    return json.dumps({'id': current_stream_id})
-
-def setup_data():
-    global initial_stream_id
-    global current_stream_id
-    global db
-    if not db:
-        if in_heroku:
-            db = sqlite3.connect(':memory:')
-        else:
-            db = sqlite3.connect('log_data.sqlite3')
-    cursor = db.cursor()
-    cursor.execute('create table if not exists log (stream_id default -1, timestamp, level, logger, message);');
-    cursor.execute('create table if not exists last_stream (id);');
-    cursor.execute('create table if not exists streams (stream_id default -1, timestamp, token, platform, version, app_id);');
-
-    cursor.execute('create table if not exists stream_director (token, platform, version, app_id, url);');
-
-    cursor.execute('select id from last_stream limit 1');
-    row = cursor.fetchone();
-    if row is None:
-        current_stream_id = initial_stream_id
-    else:
-        current_stream_id = int(row[0])
-    db.commit()
+    return json.dumps({'id': stream_id})
 
 
-def reset_data():
-    global db
-    if db:
-        db.close()
-    db = None
 
 def exit_gracefully(signum, frame):
-    global db
     # restore the original signal handler as otherwise evil things will happen
     # in raw_input when CTRL+C is pressed, and our signal handler is not re-entrant
     signal.signal(signal.SIGINT, original_sigint)
 
-    if db:
-        db.close()
+    db.session.close()
     sys.exit(1)
 
 
 
 if __name__ == '__main__':
 
-    for index in range(1, len(sys.argv)):
-        if sys.argv[index] == '--reset-data':
-            reset_data()
-        if sys.argv[index].startswith('--redirect='):
-            logging_url = sys.argv[index].split('=')[1]
-
     original_sigint = signal.getsignal(signal.SIGINT)
     signal.signal(signal.SIGINT, exit_gracefully)
-    setup_data()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
