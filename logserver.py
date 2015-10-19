@@ -6,26 +6,18 @@ import datetime
 from pprint import pprint
 import traceback
 import json
-import sqlite3
 from flask import Flask
 from flask import request
 from flask import render_template
 from flask import send_from_directory
 from flask import Flask, request, flash, url_for, redirect, render_template
-from flask_sqlalchemy import SQLAlchemy
-
+from database import db, create_model_tables
 
 
 
 initial_stream_id = 0
 current_stream_id = 0
-
-# set the project root directory as the static folder, you can set others.
 app = Flask(__name__, static_url_path='')
-config_path = os.environ.get('APP_CONFIG_FILE', 'config.py')
-print "loading config from ", config_path
-app.config.from_pyfile(config_path)
-db = SQLAlchemy(app)
 
 class LastStream(db.Model):
     __tablename__ = 'last_stream'
@@ -86,7 +78,7 @@ class LogRecord(db.Model):
     version = db.Column(db.String(120))
     app_id = db.Column(db.String(120))
 
-    def __init__(self, stream, timestamp,  logger, level, message):
+    def __init__(self, stream, timestamp, level, logger, message):
        self.sent_timestamp = timestamp
        self.logger = logger
        self.level = level
@@ -97,10 +89,6 @@ class LogRecord(db.Model):
        self.version = stream.version
        self.app_id = stream.app_id
        local_timestamp = datetime.datetime.utcnow()
-
-db.create_all()
-
-
 
 
 @app.route('/js/<path:path>')
@@ -205,7 +193,7 @@ def stream_record(stream_id):
                             record['logger'],
                             record['message'])
             db.session.add(rec)
-            db.session.commit()
+        db.session.commit()
     except:
         traceback.print_exc()
     return json.dumps({'status': 'ok'})
@@ -241,6 +229,32 @@ def get_stream():
     return json.dumps({'id': stream_id})
 
 
+@app.route('/admin/streams')
+@app.route('/admin/streams/pg<int:page>')
+def admin_streams(page=1):
+    streams = Stream.query.paginate(
+        page, app.config["STREAMS_PER_PAGE"]
+    )
+    total_streams = Stream.query.count()
+    return render_template(
+        'streams.html',
+        streams=streams,
+        total_streams=total_streams
+    )
+
+@app.route('/admin/records/<int:stream_id>')
+@app.route('/admin/records/<int:stream_id>/pg<int:page>')
+def admin_records(stream_id, page=1):
+    records = LogRecord.query.filter_by(stream_id=stream_id).paginate(
+        page, app.config["RECORDS_PER_PAGE"]
+    )
+    total_records = LogRecord.query.filter_by(stream_id=stream_id).count()
+    return render_template(
+        'records.html',
+        records=records,
+        stream_id=stream_id,
+        total_records=total_records
+    )
 
 def exit_gracefully(signum, frame):
     # restore the original signal handler as otherwise evil things will happen
@@ -251,10 +265,20 @@ def exit_gracefully(signum, frame):
     sys.exit(1)
 
 
+def create_app():
+# set the project root directory as the static folder, you can set others.
+    config_path = os.environ.get('APP_CONFIG_FILE', 'config.py')
+    print "loading config from ", config_path
+    app.config.from_pyfile(config_path)
+    with app.app_context():
+        db.init_app(app)
+        create_model_tables()
+    return app
+
 
 if __name__ == '__main__':
-
     original_sigint = signal.getsignal(signal.SIGINT)
     signal.signal(signal.SIGINT, exit_gracefully)
     port = int(os.environ.get("PORT", 5000))
+    app = create_app()
     app.run(host='0.0.0.0', port=port)

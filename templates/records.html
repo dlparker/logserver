@@ -1,0 +1,89 @@
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/log4javascript/1.4.9/log4javascript.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css"/>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+    <script src="/js/buttons.js"></script>
+
+</head>
+<body>
+<div class="row">
+  <div class="col-sm-4"><a href="/">Home</a> </div>
+  <div class="col-sm-4"><h2>Log control panel</h2>  </div>
+  <div class="col-sm-4"></div>
+</div>
+<div class="row">
+  <div class="col-sm-4"> </div>
+  <div class="col-sm-4">Total Records in DB for this stream: {{ total_records }}  </div>
+  <div class="col-sm-4"></div>
+</div>
+<div class="row">
+  <div class="col-sm-4"> </div>
+  <div class="col-sm-4"><h2>Records</h2>  </div>
+  <div class="col-sm-4"></div>
+</div>
+<div class="row">
+  <div class="col-sm-4"> </div>
+  <div class="col-sm-4">
+{# If we have previous posts #}
+{% if records.has_prev %}
+    <a href="/admin/records/pg{{ records.prev_num }}">
+        &laquo; Previous records
+    </a>
+{% else %}
+    &laquo; Previous records
+{% endif %}
+|
+{% if records.has_next %}
+    <a href="/admin/records/{{ stream_id }}/pg{{ records.next_num }}">
+        Next records &raquo;</a>
+{% else %}
+        Next records &raquo;
+{% endif %}
+  </div>
+  <div class="col-sm-4"></div>
+</div>
+
+<div class="row">
+  <div class="col-sm-12">
+      <table class="table">
+{% for record in records.items %}
+	  <tr>
+	      <td>{{ record.id }} </td>
+	      <td>{{ record.sent_timestamp }}</td>
+	      <td>{{ record.level }}</td>
+	      <td>{{ record.logger }}</td>
+	      <td>{{ record.message }}</td>
+	  </tr>
+{% endfor %}
+      </table>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-sm-4"> </div>
+  <div class="col-sm-4">
+{# If we have previous posts #}
+{% if records.has_prev %}
+    <a href="/admin/records/pg{{ records.prev_num }}">
+        &laquo; Previous records
+    </a>
+{% else %}
+    &laquo; Previous records
+{% endif %}
+|
+{% if records.has_next %}
+    <a href="/admin/records/{{ stream_id }}/pg{{ records.next_num }}">
+        Next records &raquo;</a>
+{% else %}
+        Next records &raquo;
+{% endif %}
+  </div>
+  <div class="col-sm-4"></div>
+</div>
+
+
+
+
+</body>
