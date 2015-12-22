@@ -11,6 +11,7 @@ from flask import request
 from flask import render_template
 from flask import send_from_directory
 from flask import Flask, request, flash, url_for, redirect, render_template
+from flask.ext.cors import CORS
 from database import db, create_model_tables
 
 
@@ -18,6 +19,8 @@ from database import db, create_model_tables
 initial_stream_id = 0
 current_stream_id = 0
 app = Flask(__name__, static_url_path='')
+
+CORS(app)
 
 class LastStream(db.Model):
     __tablename__ = 'last_stream'
@@ -140,6 +143,12 @@ def to_utf8(text):
 
 @app.route('/get_logging_url', methods=['GET'])
 def get_url():
+    try:
+        return get_url_inner()
+    except:
+        traceback.print_exc()
+        raise
+def get_url_inner():
     logging_url = app.config['LOGGING_URL']
     local_url = request.host_url
     if "herokuapp.com" in request.host_url:

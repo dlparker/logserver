@@ -14,8 +14,7 @@ SQLALCHEMY_ECHO = False
 # Generate a random secret key
 SECRET_KEY = os.urandom(24)
 # Disable debugging
-#LOGGING_URL = "http://localhost:5000/"
-LOGGING_URL = "http://192.168.100.108:5000/"
+LOGGING_URL = "http://localhost:5000/"
 if os.environ.get('LOG_NO_HEROKU', None):
     in_heroku = False
 
