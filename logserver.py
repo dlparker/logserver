@@ -214,9 +214,20 @@ def get_stream():
         platform = request.args.get('platform', None)
         version = request.args.get('version', None)
         app_id = request.args.get('app_id', None)
+        old_stream_id = request.args.get('old_stream_id', None)
     except:
         traceback.print_exc()
     try:
+        if old_stream_id:
+            stream = None
+            q = Stream.query.filter_by(stream_id=old_stream_id)
+            try:
+                stream = q[0]
+            except:
+                pass
+            if stream:
+                print "allowing reuse of old stread id", old_stream_id
+                return json.dumps({'id': stream.stream_id})
         all = LastStream.query.all()
 
         stream_id = 0
@@ -290,4 +301,8 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, exit_gracefully)
     port = int(os.environ.get("PORT", 5000))
     app = create_app()
+    if os.environ.get('LOG_NO_HEROKU', None) is None:
+        print "running with heroku settings, if this is wrong, export LOG_NO_HEROKU env var"
+
+
     app.run(host='0.0.0.0', port=port)
